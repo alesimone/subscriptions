@@ -16,6 +16,21 @@ const categories = [
   "Other",
 ];
 
+const categoryLabels = {
+  Streaming: "Streaming",
+  Music: "Musica",
+  Software: "Software",
+  Cloud: "Cloud",
+  Gaming: "Gaming",
+  News: "News",
+  Fitness: "Fitness",
+  Finance: "Finanza",
+  Education: "Formazione",
+  Utilities: "Utility",
+  Shopping: "Shopping",
+  Other: "Altro",
+};
+
 const categoryRules = [
   ["Streaming", ["netflix", "disney", "prime video", "hulu", "max", "paramount", "nowtv", "dazn", "sky", "spotify video"]],
   ["Music", ["spotify", "apple music", "tidal", "deezer", "youtube music", "soundcloud"]],
@@ -75,10 +90,10 @@ const serviceDirectory = {
 };
 
 const cycleLabels = {
-  weekly: "Weekly",
-  monthly: "Monthly",
-  quarterly: "Quarterly",
-  annual: "Annual",
+  weekly: "Settimanale",
+  monthly: "Mensile",
+  quarterly: "Trimestrale",
+  annual: "Annuale",
 };
 
 const cycleMonthlyFactor = {
@@ -102,6 +117,10 @@ const els = {
   memberCount: document.querySelector("#memberCount"),
   subscriptionList: document.querySelector("#subscriptionList"),
   emptyState: document.querySelector("#emptyState"),
+  emptyTitle: document.querySelector("#emptyTitle"),
+  emptyDescription: document.querySelector("#emptyDescription"),
+  activeCount: document.querySelector("#activeCount"),
+  inactiveCount: document.querySelector("#inactiveCount"),
   categoryFilter: document.querySelector("#categoryFilter"),
   ownerFilter: document.querySelector("#ownerFilter"),
   sortSelect: document.querySelector("#sortSelect"),
@@ -117,6 +136,7 @@ const els = {
   closeDialogButton: document.querySelector("#closeDialogButton"),
   cancelButton: document.querySelector("#cancelButton"),
   deleteButton: document.querySelector("#deleteButton"),
+  deleteButtonText: document.querySelector("#deleteButton span"),
   nameInput: document.querySelector("#nameInput"),
   domainInput: document.querySelector("#domainInput"),
   ownerInput: document.querySelector("#ownerInput"),
@@ -135,6 +155,7 @@ let editingId = null;
 let toastTimer = null;
 let userEditedDomain = false;
 let storageMode = "loading";
+let statusView = "active";
 
 function readLocalSubscriptions() {
   try {
@@ -159,7 +180,7 @@ async function loadSubscriptions() {
     if (subscriptions.length === 0 && localSubscriptions.length > 0) {
       subscriptions = localSubscriptions;
       await persistSubscriptions();
-      showToast("Local data migrated to Cloudflare D1");
+      showToast("Dati locali migrati su Cloudflare D1");
     }
   } catch {
     subscriptions = readLocalSubscriptions();
@@ -174,13 +195,15 @@ function normalizeSubscription(item) {
     id: item.id || crypto.randomUUID(),
     name: String(item.name || "").trim(),
     domain: normalizeDomain(item.domain || ""),
-    owner: String(item.owner || "Family").trim() || "Family",
+    owner: String(item.owner || "Famiglia").trim() || "Famiglia",
     category: categories.includes(item.category) ? item.category : "Other",
     price: Number(item.price) || 0,
     currency: item.currency || "EUR",
     cycle: Object.keys(cycleLabels).includes(item.cycle) ? item.cycle : "monthly",
     renewalDate: item.renewalDate || "",
     notes: String(item.notes || "").trim(),
+    status: item.status === "inactive" ? "inactive" : "active",
+    deactivatedAt: item.deactivatedAt || "",
     createdAt: item.createdAt || new Date().toISOString(),
     updatedAt: item.updatedAt || new Date().toISOString(),
   };
@@ -210,7 +233,7 @@ async function persistSubscriptions() {
     return true;
   } catch {
     setStorageStatus("error");
-    showToast("Saved locally, but Cloudflare sync failed");
+    showToast("Salvato in locale, ma la sincronizzazione Cloudflare non è riuscita");
     return false;
   }
 }
@@ -221,13 +244,13 @@ function setStorageStatus(mode, updatedAt = null) {
   els.storageStatus.classList.toggle("error", mode === "error");
 
   if (mode === "remote") {
-    els.storageStatus.textContent = updatedAt ? `Cloudflare D1 synced ${shortDateTime(updatedAt)}` : "Cloudflare D1 synced";
+    els.storageStatus.textContent = updatedAt ? `Cloudflare D1 sincronizzato ${shortDateTime(updatedAt)}` : "Cloudflare D1 sincronizzato";
   } else if (mode === "local") {
-    els.storageStatus.textContent = "Local browser storage";
+    els.storageStatus.textContent = "Archivio locale del browser";
   } else if (mode === "error") {
-    els.storageStatus.textContent = "Cloudflare sync needs attention";
+    els.storageStatus.textContent = "Sincronizzazione Cloudflare da controllare";
   } else {
-    els.storageStatus.textContent = "Loading storage...";
+    els.storageStatus.textContent = "Caricamento archivio...";
   }
 }
 
@@ -240,7 +263,7 @@ function money(value, currency = "EUR") {
 }
 
 function shortDate(value) {
-  if (!value) return "No date";
+  if (!value) return "Nessuna data";
   const date = new Date(`${value}T12:00:00`);
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
@@ -281,10 +304,6 @@ function normalizeDomain(value) {
   }
 }
 
-function serviceKey(subscription) {
-  return `${subscription.name} ${subscription.domain}`.toLowerCase();
-}
-
 function inferCategory(name, domain) {
   const haystack = `${name} ${domain}`.toLowerCase();
   const match = categoryRules.find(([, words]) => words.some((word) => haystack.includes(word)));
@@ -315,15 +334,23 @@ function initials(name) {
 }
 
 function currentCurrency() {
-  return subscriptions[0]?.currency || els.currencyInput.value || "EUR";
+  return activeSubscriptions()[0]?.currency || subscriptions[0]?.currency || els.currencyInput.value || "EUR";
 }
 
 function aggregateBy(items, keyFn) {
   return items.reduce((acc, item) => {
-    const key = keyFn(item) || "Unknown";
+    const key = keyFn(item) || "Sconosciuto";
     acc.set(key, (acc.get(key) || 0) + monthlyCost(item));
     return acc;
   }, new Map());
+}
+
+function activeSubscriptions() {
+  return subscriptions.filter((item) => item.status !== "inactive");
+}
+
+function inactiveSubscriptions() {
+  return subscriptions.filter((item) => item.status === "inactive");
 }
 
 function render() {
@@ -331,6 +358,7 @@ function render() {
   renderFilters();
   renderSummary();
   renderBreakdowns();
+  renderStatusCounts();
   renderSubscriptions(filtered);
   window.lucide?.createIcons();
 }
@@ -338,15 +366,16 @@ function render() {
 function renderFilters() {
   const selectedCategory = els.categoryFilter.value || "all";
   const selectedOwner = els.ownerFilter.value || "all";
-  const usedCategories = [...new Set(subscriptions.map((item) => item.category))].sort();
-  const owners = [...new Set(subscriptions.map((item) => item.owner))].sort();
+  const scoped = statusView === "active" ? activeSubscriptions() : inactiveSubscriptions();
+  const usedCategories = [...new Set(scoped.map((item) => item.category))].sort();
+  const owners = [...new Set(scoped.map((item) => item.owner))].sort();
 
   els.categoryFilter.innerHTML = [
-    `<option value="all">All categories</option>`,
-    ...usedCategories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`),
+    `<option value="all">Tutte le categorie</option>`,
+    ...usedCategories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(categoryLabels[category] || category)}</option>`),
   ].join("");
   els.ownerFilter.innerHTML = [
-    `<option value="all">All owners</option>`,
+    `<option value="all">Tutte le persone</option>`,
     ...owners.map((owner) => `<option value="${escapeHtml(owner)}">${escapeHtml(owner)}</option>`),
   ].join("");
 
@@ -356,34 +385,36 @@ function renderFilters() {
 
 function renderSummary() {
   const currency = currentCurrency();
-  const monthly = subscriptions.reduce((sum, item) => sum + monthlyCost(item), 0);
-  const dueSoon = subscriptions.filter((item) => {
+  const active = activeSubscriptions();
+  const monthly = active.reduce((sum, item) => sum + monthlyCost(item), 0);
+  const dueSoon = active.filter((item) => {
     const days = daysUntil(item.renewalDate);
     return days !== null && days >= 0 && days <= 30;
   });
-  const next = subscriptions
+  const next = active
     .filter((item) => daysUntil(item.renewalDate) !== null && daysUntil(item.renewalDate) >= 0)
     .sort((a, b) => daysUntil(a.renewalDate) - daysUntil(b.renewalDate))[0];
-  const categoryTotals = aggregateBy(subscriptions, (item) => item.category);
+  const categoryTotals = aggregateBy(active, (item) => item.category);
   const topCategory = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1])[0];
 
   els.monthlyTotal.textContent = money(monthly, currency);
   els.yearlyTotal.textContent = money(monthly * 12, currency);
   els.dueSoonTotal.textContent = String(dueSoon.length);
-  els.nextRenewal.textContent = next ? `${next.name}, ${shortDate(next.renewalDate)}` : "No date yet";
-  els.topCategory.textContent = topCategory ? `${topCategory[0]} (${money(topCategory[1], currency)})` : "None";
-  els.averageMonthly.textContent = money(subscriptions.length ? monthly / subscriptions.length : 0, currency);
-  els.unknownRenewals.textContent = String(subscriptions.filter((item) => !item.renewalDate).length);
+  els.nextRenewal.textContent = next ? `${next.name}, ${shortDate(next.renewalDate)}` : "Nessuna data";
+  els.topCategory.textContent = topCategory ? `${categoryLabels[topCategory[0]] || topCategory[0]} (${money(topCategory[1], currency)})` : "Nessuna";
+  els.averageMonthly.textContent = money(active.length ? monthly / active.length : 0, currency);
+  els.unknownRenewals.textContent = String(active.filter((item) => !item.renewalDate).length);
 }
 
 function renderBreakdowns() {
-  renderBreakdown(els.categoryBreakdown, aggregateBy(subscriptions, (item) => item.category));
-  renderBreakdown(els.memberBreakdown, aggregateBy(subscriptions, (item) => item.owner));
-  els.categoryCount.textContent = String(new Set(subscriptions.map((item) => item.category)).size);
-  els.memberCount.textContent = String(new Set(subscriptions.map((item) => item.owner)).size);
+  const active = activeSubscriptions();
+  renderBreakdown(els.categoryBreakdown, aggregateBy(active, (item) => item.category), "category");
+  renderBreakdown(els.memberBreakdown, aggregateBy(active, (item) => item.owner), "owner");
+  els.categoryCount.textContent = String(new Set(active.map((item) => item.category)).size);
+  els.memberCount.textContent = String(new Set(active.map((item) => item.owner)).size);
 }
 
-function renderBreakdown(container, totals) {
+function renderBreakdown(container, totals, type) {
   const currency = currentCurrency();
   const rows = [...totals.entries()].sort((a, b) => b[1] - a[1]);
   const max = Math.max(...rows.map(([, value]) => value), 1);
@@ -392,13 +423,21 @@ function renderBreakdown(container, totals) {
         .map(
           ([label, value]) => `
             <div class="breakdown-row">
-              <div><strong>${escapeHtml(label)}</strong><span>${money(value, currency)}/mo</span></div>
+              <div><strong>${escapeHtml(type === "category" ? categoryLabels[label] || label : label)}</strong><span>${money(value, currency)}/mese</span></div>
               <div class="bar" aria-hidden="true"><i style="--value:${Math.round((value / max) * 100)}%"></i></div>
             </div>
           `,
         )
         .join("")
-    : `<p class="subscription-notes">Nothing tracked yet.</p>`;
+    : `<p class="subscription-notes">Nessun dato ancora.</p>`;
+}
+
+function renderStatusCounts() {
+  els.activeCount.textContent = String(activeSubscriptions().length);
+  els.inactiveCount.textContent = String(inactiveSubscriptions().length);
+  document.querySelectorAll("[data-status-view]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.statusView === statusView);
+  });
 }
 
 function getFilteredSubscriptions() {
@@ -408,8 +447,10 @@ function getFilteredSubscriptions() {
   const sort = els.sortSelect.value;
 
   return subscriptions
+    .filter((item) => item.status === statusView)
     .filter((item) => {
-      const matchesQuery = !query || `${item.name} ${item.domain} ${item.owner} ${item.category} ${item.notes}`.toLowerCase().includes(query);
+      const categoryLabel = categoryLabels[item.category] || item.category;
+      const matchesQuery = !query || `${item.name} ${item.domain} ${item.owner} ${item.category} ${categoryLabel} ${item.notes}`.toLowerCase().includes(query);
       const matchesCategory = category === "all" || item.category === category;
       const matchesOwner = owner === "all" || item.owner === owner;
       return matchesQuery && matchesCategory && matchesOwner;
@@ -425,8 +466,20 @@ function getFilteredSubscriptions() {
 }
 
 function renderSubscriptions(items) {
-  els.emptyState.hidden = subscriptions.length !== 0;
-  els.subscriptionList.hidden = subscriptions.length === 0;
+  const currentTotal = statusView === "active" ? activeSubscriptions().length : inactiveSubscriptions().length;
+  const hasRows = items.length > 0;
+  els.emptyState.hidden = hasRows;
+  els.subscriptionList.hidden = !hasRows;
+  els.emptyAddButton.hidden = statusView === "inactive";
+  els.emptyTitle.textContent = statusView === "active" ? "Nessun abbonamento attivo" : "Nessun abbonamento disattivato";
+  els.emptyDescription.textContent =
+    statusView === "active"
+      ? "Aggiungi il primo servizio ricorrente e il riepilogo calcolerà i totali automaticamente."
+      : "Quando disattivi un abbonamento, lo troverai qui senza perdere lo storico.";
+  if (currentTotal > 0 && !hasRows) {
+    els.emptyTitle.textContent = "Nessun risultato";
+    els.emptyDescription.textContent = "Prova a cambiare ricerca o filtri.";
+  }
   els.subscriptionList.innerHTML = items.map(subscriptionRow).join("");
 }
 
@@ -434,12 +487,13 @@ function subscriptionRow(item) {
   const days = daysUntil(item.renewalDate);
   const warning = days !== null && days >= 0 && days <= 30;
   const dateText = item.renewalDate
-    ? `${shortDate(item.renewalDate)}${days !== null && days >= 0 ? ` · in ${days}d` : ""}`
-    : "Unknown";
+    ? `${shortDate(item.renewalDate)}${days !== null && days >= 0 ? ` · tra ${days}g` : ""}`
+    : "Sconosciuto";
   const logos = logoUrls(item.domain);
+  const statusNote = item.status === "inactive" && item.deactivatedAt ? `<span class="subscription-domain">Disattivato ${shortDateTime(item.deactivatedAt)}</span>` : "";
 
   return `
-    <button class="subscription-row" type="button" data-id="${item.id}">
+    <button class="subscription-row ${item.status === "inactive" ? "inactive" : ""}" type="button" data-id="${item.id}">
       <span class="subscription-main">
         <span class="logo-wrap">
           ${
@@ -450,18 +504,19 @@ function subscriptionRow(item) {
         </span>
         <span>
           <span class="subscription-title">${escapeHtml(item.name)}</span>
-          <span class="subscription-domain">${escapeHtml(item.domain || "No website")}</span>
+          <span class="subscription-domain">${escapeHtml(item.domain || "Nessun sito")}</span>
+          ${statusNote}
         </span>
       </span>
-      <span class="subscription-label" data-label="Owner">${escapeHtml(item.owner)}</span>
-      <span class="pill">${escapeHtml(item.category)}</span>
-      <span class="subscription-label" data-label="Billing">${money(item.price, item.currency)} · ${cycleLabels[item.cycle]}</span>
-      <span class="subscription-meta" data-label="Renewal">
+      <span class="subscription-label" data-label="Persona">${escapeHtml(item.owner)}</span>
+      <span class="pill">${escapeHtml(categoryLabels[item.category] || item.category)}</span>
+      <span class="subscription-label" data-label="Pagamento">${money(item.price, item.currency)} · ${cycleLabels[item.cycle]}</span>
+      <span class="subscription-meta" data-label="Rinnovo">
         <i class="status-dot ${item.renewalDate ? (warning ? "warning" : "") : "missing"}"></i>
         <span class="subscription-label">${escapeHtml(dateText)}</span>
       </span>
       <span class="subscription-actions">
-        <span class="mini-button" title="Edit"><i data-lucide="pencil"></i></span>
+        <span class="mini-button" title="Modifica"><i data-lucide="pencil"></i></span>
       </span>
     </button>
   `;
@@ -472,14 +527,17 @@ function openDialog(id = null) {
   userEditedDomain = Boolean(id);
   const item = subscriptions.find((subscription) => subscription.id === id);
   els.form.reset();
-  els.categoryInput.innerHTML = categories.map((category) => `<option value="${category}">${category}</option>`).join("");
-  els.dialogMode.textContent = item ? "Edit subscription" : "New subscription";
-  els.dialogTitle.textContent = item ? item.name : "Add details";
+  els.categoryInput.innerHTML = categories.map((category) => `<option value="${category}">${categoryLabels[category] || category}</option>`).join("");
+  els.dialogMode.textContent = item ? (item.status === "inactive" ? "Abbonamento disattivato" : "Modifica abbonamento") : "Nuovo abbonamento";
+  els.dialogTitle.textContent = item ? item.name : "Aggiungi dettagli";
   els.deleteButton.hidden = !item;
+  els.deleteButton.classList.toggle("restore-button", item?.status === "inactive");
+  els.deleteButtonText.textContent = item?.status === "inactive" ? "Riattiva" : "Disattiva";
+  els.deleteButton.querySelector("i")?.setAttribute("data-lucide", item?.status === "inactive" ? "rotate-ccw" : "archive");
 
   els.nameInput.value = item?.name || "";
   els.domainInput.value = item?.domain || "";
-  els.ownerInput.value = item?.owner || "Family";
+  els.ownerInput.value = item?.owner || "Famiglia";
   els.categoryInput.value = item?.category || "Other";
   els.priceInput.value = item?.price || "";
   els.currencyInput.value = item?.currency || currentCurrency();
@@ -510,6 +568,8 @@ async function handleSubmit(event) {
     cycle: els.cycleInput.value,
     renewalDate: els.renewalInput.value,
     notes: els.notesInput.value,
+    status: subscriptions.find((item) => item.id === editingId)?.status || "active",
+    deactivatedAt: subscriptions.find((item) => item.id === editingId)?.deactivatedAt || "",
     createdAt: subscriptions.find((item) => item.id === editingId)?.createdAt || now,
     updatedAt: now,
   });
@@ -518,22 +578,38 @@ async function handleSubmit(event) {
     subscriptions = subscriptions.map((item) => (item.id === editingId ? data : item));
   } else {
     subscriptions = [data, ...subscriptions];
+    statusView = "active";
   }
 
   await persistSubscriptions();
   closeDialog();
   render();
-  showToast(`${data.name} saved`);
+  showToast(`${data.name} salvato`);
 }
 
-async function deleteEditingItem() {
+async function toggleEditingStatus() {
   if (!editingId) return;
-  const item = subscriptions.find((subscription) => subscription.id === editingId);
-  subscriptions = subscriptions.filter((subscription) => subscription.id !== editingId);
+  let changedItem = null;
+  subscriptions = subscriptions.map((subscription) => {
+    if (subscription.id !== editingId) return subscription;
+    const isInactive = subscription.status === "inactive";
+    changedItem = {
+      ...subscription,
+      status: isInactive ? "active" : "inactive",
+      deactivatedAt: isInactive ? "" : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return changedItem;
+  });
   await persistSubscriptions();
   closeDialog();
+  statusView = changedItem?.status || statusView;
   render();
-  showToast(`${item?.name || "Subscription"} deleted`);
+  showToast(
+    changedItem?.status === "inactive"
+      ? `${changedItem.name} spostato negli abbonamenti disattivati`
+      : `${changedItem?.name || "Abbonamento"} riattivato`,
+  );
 }
 
 function exportData() {
@@ -546,7 +622,7 @@ function exportData() {
   link.download = `family-subscriptions-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
-  showToast("Data exported");
+  showToast("Dati esportati");
 }
 
 async function importData(event) {
@@ -556,13 +632,13 @@ async function importData(event) {
     const text = await file.text();
     const parsed = JSON.parse(text);
     const incoming = Array.isArray(parsed) ? parsed : parsed.subscriptions;
-    if (!Array.isArray(incoming)) throw new Error("Invalid subscription file");
+    if (!Array.isArray(incoming)) throw new Error("File abbonamenti non valido");
     subscriptions = incoming.map(normalizeSubscription);
     await persistSubscriptions();
     render();
-    showToast("Data imported");
+    showToast("Dati importati");
   } catch {
-    showToast("Import failed: choose a valid JSON export");
+    showToast("Importazione non riuscita: scegli un export JSON valido");
   } finally {
     event.target.value = "";
   }
@@ -589,7 +665,7 @@ function wireEvents() {
   els.emptyAddButton.addEventListener("click", () => openDialog());
   els.closeDialogButton.addEventListener("click", closeDialog);
   els.cancelButton.addEventListener("click", closeDialog);
-  els.deleteButton.addEventListener("click", deleteEditingItem);
+  els.deleteButton.addEventListener("click", toggleEditingStatus);
   els.form.addEventListener("submit", handleSubmit);
   els.exportButton.addEventListener("click", exportData);
   els.importInput.addEventListener("change", importData);
@@ -597,6 +673,12 @@ function wireEvents() {
   els.categoryFilter.addEventListener("change", render);
   els.ownerFilter.addEventListener("change", render);
   els.sortSelect.addEventListener("change", render);
+  document.querySelectorAll("[data-status-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      statusView = button.dataset.statusView;
+      render();
+    });
+  });
   els.subscriptionList.addEventListener("click", (event) => {
     const row = event.target.closest(".subscription-row");
     if (row) openDialog(row.dataset.id);

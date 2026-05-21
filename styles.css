@@ -325,6 +325,11 @@ h1 {
   background: #f8e8eb;
 }
 
+.restore-button {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
 .icon-button,
 .file-button {
   display: inline-grid;
@@ -380,6 +385,56 @@ h1 {
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.view-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.view-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-weight: 900;
+}
+
+.view-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.view-button strong {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 24px;
+  margin-left: auto;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: #eee8df;
+  font-size: 0.78rem;
+}
+
+.view-button.active {
+  color: #ffffff;
+  border-color: #123c3a;
+  background: #123c3a;
+}
+
+.view-button.active strong {
+  color: #123c3a;
+  background: #ffffff;
 }
 
 .search-box {
@@ -465,6 +520,17 @@ select {
 
 .subscription-row:hover {
   background: rgba(15, 118, 110, 0.06);
+}
+
+.subscription-row.inactive {
+  color: var(--muted);
+  background: rgba(238, 232, 223, 0.42);
+}
+
+.subscription-row.inactive .logo-wrap,
+.subscription-row.inactive .pill {
+  filter: grayscale(1);
+  opacity: 0.72;
 }
 
 .subscription-row:last-child {
