@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A private local subscription tracker for family recurring costs."
+    />
+    <title>Family Subscriptions</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://logo.clearbit.com" />
+    <link rel="preconnect" href="https://icons.duckduckgo.com" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Subscription summary">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <i data-lucide="wallet-cards"></i>
+          </div>
+          <div>
+            <p class="eyebrow">Local family tracker</p>
+            <h1>Subscriptions</h1>
+          </div>
+        </div>
+
+        <section class="summary-stack" aria-label="Cost totals">
+          <article class="metric metric-primary">
+            <span>Monthly pace</span>
+            <strong id="monthlyTotal">€0.00</strong>
+          </article>
+          <article class="metric">
+            <span>Yearly total</span>
+            <strong id="yearlyTotal">€0.00</strong>
+          </article>
+          <article class="metric">
+            <span>Due in 30 days</span>
+            <strong id="dueSoonTotal">0</strong>
+          </article>
+        </section>
+
+        <section class="sidebar-section">
+          <div class="section-heading">
+            <h2>Categories</h2>
+            <span id="categoryCount">0</span>
+          </div>
+          <div id="categoryBreakdown" class="breakdown-list"></div>
+        </section>
+
+        <section class="sidebar-section">
+          <div class="section-heading">
+            <h2>Family</h2>
+            <span id="memberCount">0</span>
+          </div>
+          <div id="memberBreakdown" class="breakdown-list"></div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Private shared database</p>
+            <h2>Track renewals, owners, costs, and categories.</h2>
+            <span class="sync-badge" id="storageStatus">Loading storage...</span>
+          </div>
+          <div class="topbar-actions">
+            <button class="icon-button" id="exportButton" type="button" title="Export data">
+              <i data-lucide="download"></i>
+            </button>
+            <label class="icon-button file-button" title="Import data">
+              <i data-lucide="upload"></i>
+              <input id="importInput" type="file" accept="application/json" />
+            </label>
+            <button class="primary-button" id="newButton" type="button">
+              <i data-lucide="plus"></i>
+              <span>Add subscription</span>
+            </button>
+          </div>
+        </header>
+
+        <section class="insights-grid" aria-label="Highlights">
+          <article class="insight">
+            <span class="insight-icon" aria-hidden="true"><i data-lucide="calendar-clock"></i></span>
+            <div>
+              <span>Next renewal</span>
+              <strong id="nextRenewal">No date yet</strong>
+            </div>
+          </article>
+          <article class="insight">
+            <span class="insight-icon" aria-hidden="true"><i data-lucide="pie-chart"></i></span>
+            <div>
+              <span>Top category</span>
+              <strong id="topCategory">None</strong>
+            </div>
+          </article>
+          <article class="insight">
+            <span class="insight-icon" aria-hidden="true"><i data-lucide="badge-euro"></i></span>
+            <div>
+              <span>Average monthly</span>
+              <strong id="averageMonthly">€0.00</strong>
+            </div>
+          </article>
+          <article class="insight">
+            <span class="insight-icon" aria-hidden="true"><i data-lucide="circle-help"></i></span>
+            <div>
+              <span>Unknown renewal</span>
+              <strong id="unknownRenewals">0</strong>
+            </div>
+          </article>
+        </section>
+
+        <section class="control-panel" aria-label="Filters">
+          <div class="search-box">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input id="searchInput" type="search" placeholder="Search service, owner, category..." />
+          </div>
+          <div class="filters">
+            <select id="categoryFilter" aria-label="Filter by category">
+              <option value="all">All categories</option>
+            </select>
+            <select id="ownerFilter" aria-label="Filter by owner">
+              <option value="all">All owners</option>
+            </select>
+            <select id="sortSelect" aria-label="Sort subscriptions">
+              <option value="renewal">Sort by renewal</option>
+              <option value="costDesc">Highest cost</option>
+              <option value="name">Name A-Z</option>
+              <option value="category">Category</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="table-shell" aria-label="Subscriptions">
+          <div class="table-head">
+            <span>Service</span>
+            <span>Owner</span>
+            <span>Category</span>
+            <span>Billing</span>
+            <span>Renewal</span>
+            <span></span>
+          </div>
+          <div id="subscriptionList" class="subscription-list"></div>
+          <div id="emptyState" class="empty-state" hidden>
+            <i data-lucide="sparkles"></i>
+            <h3>No subscriptions yet</h3>
+            <p>Add your first recurring service and the dashboard will calculate family totals automatically.</p>
+            <button class="primary-button" id="emptyAddButton" type="button">
+              <i data-lucide="plus"></i>
+              <span>Add subscription</span>
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="subscriptionDialog" class="dialog">
+      <form id="subscriptionForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow" id="dialogMode">New subscription</p>
+            <h2 id="dialogTitle">Add details</h2>
+          </div>
+          <button class="icon-button" id="closeDialogButton" type="button" title="Close">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            <span>Service name</span>
+            <input id="nameInput" name="name" autocomplete="off" required placeholder="Netflix" />
+          </label>
+          <label>
+            <span>Website or domain</span>
+            <input id="domainInput" name="domain" autocomplete="off" placeholder="netflix.com" />
+          </label>
+          <label>
+            <span>Owner</span>
+            <input id="ownerInput" name="owner" autocomplete="off" placeholder="Family" />
+          </label>
+          <label>
+            <span>Category</span>
+            <select id="categoryInput" name="category"></select>
+          </label>
+          <label>
+            <span>Price</span>
+            <input id="priceInput" name="price" inputmode="decimal" min="0" step="0.01" type="number" required />
+          </label>
+          <label>
+            <span>Currency</span>
+            <select id="currencyInput" name="currency">
+              <option value="EUR">EUR</option>
+              <option value="USD">USD</option>
+              <option value="GBP">GBP</option>
+              <option value="CHF">CHF</option>
+            </select>
+          </label>
+          <label>
+            <span>Billing cycle</span>
+            <select id="cycleInput" name="cycle">
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </label>
+          <label>
+            <span>Renewal date</span>
+            <input id="renewalInput" name="renewalDate" type="date" />
+          </label>
+        </div>
+
+        <label class="notes-field">
+          <span>Notes</span>
+          <textarea id="notesInput" name="notes" rows="3" placeholder="Plan, seats, shared login, cancellation details..."></textarea>
+        </label>
+
+        <div class="dialog-actions">
+          <button class="danger-button" id="deleteButton" type="button">
+            <i data-lucide="trash-2"></i>
+            <span>Delete</span>
+          </button>
+          <div>
+            <button class="ghost-button" id="cancelButton" type="button">Cancel</button>
+            <button class="primary-button" type="submit">
+              <i data-lucide="save"></i>
+              <span>Save</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
