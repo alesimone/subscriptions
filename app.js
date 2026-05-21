@@ -144,6 +144,7 @@ const els = {
   cancelButton: document.querySelector("#cancelButton"),
   deleteButton: document.querySelector("#deleteButton"),
   deleteButtonText: document.querySelector("#deleteButton span"),
+  hardDeleteButton: document.querySelector("#hardDeleteButton"),
   nameInput: document.querySelector("#nameInput"),
   domainInput: document.querySelector("#domainInput"),
   ownerInput: document.querySelector("#ownerInput"),
@@ -599,6 +600,7 @@ function openDialog(id = null) {
   els.dialogMode.textContent = item ? (item.status === "inactive" ? "Abbonamento disattivato" : "Modifica abbonamento") : "Nuovo abbonamento";
   els.dialogTitle.textContent = item ? item.name : "Aggiungi dettagli";
   els.deleteButton.hidden = !item;
+  els.hardDeleteButton.hidden = !item;
   els.deleteButton.classList.toggle("restore-button", item?.status === "inactive");
   els.deleteButtonText.textContent = item?.status === "inactive" ? "Riattiva" : "Disattiva";
   els.deleteButton.querySelector("i")?.setAttribute("data-lucide", item?.status === "inactive" ? "rotate-ccw" : "archive");
@@ -682,6 +684,19 @@ async function toggleEditingStatus() {
   );
 }
 
+async function hardDeleteEditingItem() {
+  if (!editingId) return;
+  const item = subscriptions.find((subscription) => subscription.id === editingId);
+  const confirmed = confirm(`Cancellare definitivamente "${item?.name || "questo abbonamento"}"? Questa azione non si può annullare.`);
+  if (!confirmed) return;
+
+  subscriptions = subscriptions.filter((subscription) => subscription.id !== editingId);
+  await persistSubscriptions();
+  closeDialog();
+  render();
+  showToast(`${item?.name || "Abbonamento"} cancellato definitivamente`);
+}
+
 function exportData() {
   const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), subscriptions }, null, 2)], {
     type: "application/json",
@@ -736,6 +751,7 @@ function wireEvents() {
   els.closeDialogButton.addEventListener("click", closeDialog);
   els.cancelButton.addEventListener("click", closeDialog);
   els.deleteButton.addEventListener("click", toggleEditingStatus);
+  els.hardDeleteButton.addEventListener("click", hardDeleteEditingItem);
   els.form.addEventListener("submit", handleSubmit);
   els.exportButton.addEventListener("click", exportData);
   els.importInput.addEventListener("change", importData);

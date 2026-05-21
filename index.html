@@ -246,10 +246,16 @@
         </label>
 
         <div class="dialog-actions">
-          <button class="danger-button" id="deleteButton" type="button">
-            <i data-lucide="archive"></i>
-            <span>Disattiva</span>
-          </button>
+          <div class="destructive-actions">
+            <button class="danger-button" id="deleteButton" type="button">
+              <i data-lucide="archive"></i>
+              <span>Disattiva</span>
+            </button>
+            <button class="hard-delete-button" id="hardDeleteButton" type="button">
+              <i data-lucide="trash-2"></i>
+              <span>Cancella</span>
+            </button>
+          </div>
           <div>
             <button class="ghost-button" id="cancelButton" type="button">Annulla</button>
             <button class="primary-button" type="submit">

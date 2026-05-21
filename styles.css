@@ -336,13 +336,15 @@ h1 {
 }
 
 .topbar-actions,
-.dialog-actions > div {
+.dialog-actions > div,
+.destructive-actions {
   gap: 10px;
 }
 
 .primary-button,
 .ghost-button,
 .danger-button,
+.hard-delete-button,
 .icon-button,
 .file-button {
   min-height: 42px;
@@ -356,7 +358,8 @@ h1 {
 
 .primary-button,
 .ghost-button,
-.danger-button {
+.danger-button,
+.hard-delete-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -382,6 +385,11 @@ h1 {
 .danger-button {
   color: var(--rose);
   background: #f8e8eb;
+}
+
+.hard-delete-button {
+  color: #ffffff;
+  background: var(--rose);
 }
 
 .restore-button {
@@ -410,6 +418,7 @@ h1 {
 .primary-button:hover,
 .ghost-button:hover,
 .danger-button:hover,
+.hard-delete-button:hover,
 .icon-button:hover,
 .file-button:hover {
   transform: translateY(-1px);
@@ -761,6 +770,11 @@ select {
   gap: 16px;
 }
 
+.destructive-actions {
+  display: flex;
+  align-items: center;
+}
+
 .dialog-header h2 {
   font-size: 1.45rem;
 }
@@ -914,7 +928,8 @@ select {
     flex-direction: column-reverse;
   }
 
-  .dialog-actions > div {
+  .dialog-actions > div,
+  .destructive-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
