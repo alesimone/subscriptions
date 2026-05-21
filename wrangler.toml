@@ -1,0 +1,8 @@
+name = "subscriptions"
+compatibility_date = "2026-05-21"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "family-subscriptions"
+database_id = "14d7a101-cd27-4825-8a05-358f5109ad31"

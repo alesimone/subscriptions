@@ -36,7 +36,9 @@ The API also creates the table automatically, but running the schema once is cle
 
 ### 3. Bind D1 to Pages
 
-Use either the Cloudflare dashboard or a Wrangler config.
+This repository already includes a `wrangler.toml` with the `DB` binding for the `family-subscriptions` D1 database. If you deploy from GitHub, Cloudflare Pages can read that configuration during deploy.
+
+You can also verify or add the same binding from the dashboard.
 
 Dashboard path:
 
@@ -47,7 +49,7 @@ Dashboard path:
 5. Choose the `family-subscriptions` database.
 6. Redeploy the Pages project.
 
-Wrangler config:
+Wrangler config, if you ever need to recreate it:
 
 ```sh
 cp wrangler.example.toml wrangler.toml
