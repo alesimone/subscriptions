@@ -1,0 +1,13 @@
+.git/
+.gitignore
+.assetsignore
+.wrangler/
+functions/
+src/
+node_modules/
+README.md
+_headers
+schema.sql
+wrangler.jsonc
+wrangler.toml
+wrangler.example.toml

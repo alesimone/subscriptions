@@ -5,10 +5,36 @@ const jsonHeaders = {
   "Cache-Control": "no-store",
 };
 
-export async function onRequestGet(context) {
-  const db = context.env.DB;
-  if (!db) return bindingMissing();
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
 
+    if (url.pathname === "/api/subscriptions") {
+      return handleSubscriptions(request, env);
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+};
+
+async function handleSubscriptions(request, env) {
+  if (!env.DB) return bindingMissing();
+
+  if (request.method === "GET") {
+    return getSubscriptions(env.DB);
+  }
+
+  if (request.method === "PUT" || request.method === "POST") {
+    return saveSubscriptions(request, env.DB);
+  }
+
+  return Response.json(
+    { error: "Method not allowed" },
+    { status: 405, headers: { ...jsonHeaders, Allow: "GET, PUT, POST" } },
+  );
+}
+
+async function getSubscriptions(db) {
   await ensureSchema(db);
   const row = await db
     .prepare("SELECT value, updated_at FROM app_state WHERE key = ?")
@@ -24,21 +50,10 @@ export async function onRequestGet(context) {
   );
 }
 
-export async function onRequestPut(context) {
-  return saveSubscriptions(context);
-}
-
-export async function onRequestPost(context) {
-  return saveSubscriptions(context);
-}
-
-async function saveSubscriptions(context) {
-  const db = context.env.DB;
-  if (!db) return bindingMissing();
-
+async function saveSubscriptions(request, db) {
   let body;
   try {
-    body = await context.request.json();
+    body = await request.json();
   } catch {
     return Response.json({ error: "Invalid JSON body" }, { status: 400, headers: jsonHeaders });
   }
@@ -76,7 +91,7 @@ async function ensureSchema(db) {
 
 function bindingMissing() {
   return Response.json(
-    { error: "D1 binding DB is not configured for this Pages project" },
+    { error: "D1 binding DB is not configured for this Worker" },
     { status: 503, headers: jsonHeaders },
   );
 }
