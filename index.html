@@ -41,6 +41,14 @@
           </article>
         </section>
 
+        <section class="sidebar-section quick-section">
+          <div class="section-heading">
+            <h2>Vista rapida</h2>
+            <span id="quickFilterCount">0</span>
+          </div>
+          <div id="quickFilterList" class="quick-filter-list"></div>
+        </section>
+
         <section class="sidebar-section">
           <div class="section-heading">
             <h2>Categorie</h2>
@@ -196,6 +204,13 @@
           <label>
             <span>Categoria</span>
             <select id="categoryInput" name="category"></select>
+          </label>
+          <label>
+            <span>Priorità</span>
+            <select id="necessityInput" name="necessity">
+              <option value="cancellable">Disattivabile</option>
+              <option value="necessary">Necessario</option>
+            </select>
           </label>
           <label>
             <span>Prezzo</span>

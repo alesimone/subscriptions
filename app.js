@@ -103,6 +103,11 @@ const cycleMonthlyFactor = {
   annual: 1 / 12,
 };
 
+const necessityLabels = {
+  cancellable: "Disattivabile",
+  necessary: "Necessario",
+};
+
 const els = {
   monthlyTotal: document.querySelector("#monthlyTotal"),
   yearlyTotal: document.querySelector("#yearlyTotal"),
@@ -115,6 +120,8 @@ const els = {
   memberBreakdown: document.querySelector("#memberBreakdown"),
   categoryCount: document.querySelector("#categoryCount"),
   memberCount: document.querySelector("#memberCount"),
+  quickFilterCount: document.querySelector("#quickFilterCount"),
+  quickFilterList: document.querySelector("#quickFilterList"),
   subscriptionList: document.querySelector("#subscriptionList"),
   emptyState: document.querySelector("#emptyState"),
   emptyTitle: document.querySelector("#emptyTitle"),
@@ -141,6 +148,7 @@ const els = {
   domainInput: document.querySelector("#domainInput"),
   ownerInput: document.querySelector("#ownerInput"),
   categoryInput: document.querySelector("#categoryInput"),
+  necessityInput: document.querySelector("#necessityInput"),
   priceInput: document.querySelector("#priceInput"),
   currencyInput: document.querySelector("#currencyInput"),
   cycleInput: document.querySelector("#cycleInput"),
@@ -156,6 +164,7 @@ let toastTimer = null;
 let userEditedDomain = false;
 let storageMode = "loading";
 let statusView = "active";
+let quickFilter = { type: "all", value: "all" };
 
 function readLocalSubscriptions() {
   try {
@@ -203,10 +212,17 @@ function normalizeSubscription(item) {
     renewalDate: item.renewalDate || "",
     notes: String(item.notes || "").trim(),
     status: item.status === "inactive" ? "inactive" : "active",
+    necessity: normalizeNecessity(item.necessity || item.priority || item.cleanupType),
     deactivatedAt: item.deactivatedAt || "",
     createdAt: item.createdAt || new Date().toISOString(),
     updatedAt: item.updatedAt || new Date().toISOString(),
   };
+}
+
+function normalizeNecessity(value) {
+  return ["necessary", "necessario", "essenziale"].includes(String(value || "").toLowerCase())
+    ? "necessary"
+    : "cancellable";
 }
 
 function saveLocalSubscriptions() {
@@ -358,6 +374,7 @@ function render() {
   renderFilters();
   renderSummary();
   renderBreakdowns();
+  renderQuickFilters();
   renderStatusCounts();
   renderSubscriptions(filtered);
   window.lucide?.createIcons();
@@ -432,6 +449,44 @@ function renderBreakdown(container, totals, type) {
     : `<p class="subscription-notes">Nessun dato ancora.</p>`;
 }
 
+function renderQuickFilters() {
+  const active = activeSubscriptions();
+  const categoryTotals = [...aggregateBy(active, (item) => item.category).entries()].sort((a, b) => b[1] - a[1]);
+  const cancellableCount = active.filter((item) => item.necessity === "cancellable").length;
+  const necessaryCount = active.filter((item) => item.necessity === "necessary").length;
+  const buttons = [
+    { type: "all", value: "all", label: "Tutti gli attivi", count: active.length, icon: "list-filter" },
+    { type: "necessity", value: "cancellable", label: "Disattivabili", count: cancellableCount, icon: "scissors" },
+    { type: "necessity", value: "necessary", label: "Necessari", count: necessaryCount, icon: "shield-check" },
+    ...categoryTotals.map(([category]) => ({
+      type: "category",
+      value: category,
+      label: categoryLabels[category] || category,
+      count: active.filter((item) => item.category === category).length,
+      icon: "tag",
+    })),
+  ];
+
+  const activeButton = buttons.find((button) => button.type === quickFilter.type && button.value === quickFilter.value);
+  els.quickFilterCount.textContent = String(activeButton?.count || active.length);
+  els.quickFilterList.innerHTML = buttons
+    .map(
+      (button) => `
+        <button
+          class="quick-filter ${button.type === quickFilter.type && button.value === quickFilter.value ? "active" : ""}"
+          type="button"
+          data-quick-type="${escapeHtml(button.type)}"
+          data-quick-value="${escapeHtml(button.value)}"
+        >
+          <i data-lucide="${button.icon}"></i>
+          <span>${escapeHtml(button.label)}</span>
+          <strong>${button.count}</strong>
+        </button>
+      `,
+    )
+    .join("");
+}
+
 function renderStatusCounts() {
   els.activeCount.textContent = String(activeSubscriptions().length);
   els.inactiveCount.textContent = String(inactiveSubscriptions().length);
@@ -450,10 +505,19 @@ function getFilteredSubscriptions() {
     .filter((item) => item.status === statusView)
     .filter((item) => {
       const categoryLabel = categoryLabels[item.category] || item.category;
-      const matchesQuery = !query || `${item.name} ${item.domain} ${item.owner} ${item.category} ${categoryLabel} ${item.notes}`.toLowerCase().includes(query);
+      const necessityLabel = necessityLabels[item.necessity] || item.necessity;
+      const matchesQuery =
+        !query ||
+        `${item.name} ${item.domain} ${item.owner} ${item.category} ${categoryLabel} ${necessityLabel} ${item.notes}`
+          .toLowerCase()
+          .includes(query);
       const matchesCategory = category === "all" || item.category === category;
       const matchesOwner = owner === "all" || item.owner === owner;
-      return matchesQuery && matchesCategory && matchesOwner;
+      const matchesQuickFilter =
+        quickFilter.type === "all" ||
+        (quickFilter.type === "category" && item.category === quickFilter.value) ||
+        (quickFilter.type === "necessity" && item.necessity === quickFilter.value);
+      return matchesQuery && matchesCategory && matchesOwner && matchesQuickFilter;
     })
     .sort((a, b) => {
       if (sort === "costDesc") return monthlyCost(b) - monthlyCost(a);
@@ -491,6 +555,7 @@ function subscriptionRow(item) {
     : "Sconosciuto";
   const logos = logoUrls(item.domain);
   const statusNote = item.status === "inactive" && item.deactivatedAt ? `<span class="subscription-domain">Disattivato ${shortDateTime(item.deactivatedAt)}</span>` : "";
+  const necessityClass = item.necessity === "necessary" ? "necessary" : "cancellable";
 
   return `
     <button class="subscription-row ${item.status === "inactive" ? "inactive" : ""}" type="button" data-id="${item.id}">
@@ -509,7 +574,10 @@ function subscriptionRow(item) {
         </span>
       </span>
       <span class="subscription-label" data-label="Persona">${escapeHtml(item.owner)}</span>
-      <span class="pill">${escapeHtml(categoryLabels[item.category] || item.category)}</span>
+      <span class="pill-stack" data-label="Categoria">
+        <span class="pill">${escapeHtml(categoryLabels[item.category] || item.category)}</span>
+        <span class="pill necessity-pill ${necessityClass}">${escapeHtml(necessityLabels[item.necessity] || "Disattivabile")}</span>
+      </span>
       <span class="subscription-label" data-label="Pagamento">${money(item.price, item.currency)} · ${cycleLabels[item.cycle]}</span>
       <span class="subscription-meta" data-label="Rinnovo">
         <i class="status-dot ${item.renewalDate ? (warning ? "warning" : "") : "missing"}"></i>
@@ -539,6 +607,7 @@ function openDialog(id = null) {
   els.domainInput.value = item?.domain || "";
   els.ownerInput.value = item?.owner || "Famiglia";
   els.categoryInput.value = item?.category || "Other";
+  els.necessityInput.value = item?.necessity || "cancellable";
   els.priceInput.value = item?.price || "";
   els.currencyInput.value = item?.currency || currentCurrency();
   els.cycleInput.value = item?.cycle || "monthly";
@@ -563,6 +632,7 @@ async function handleSubmit(event) {
     domain: els.domainInput.value,
     owner: els.ownerInput.value,
     category: els.categoryInput.value,
+    necessity: els.necessityInput.value,
     price: els.priceInput.value,
     currency: els.currencyInput.value,
     cycle: els.cycleInput.value,
@@ -676,8 +746,22 @@ function wireEvents() {
   document.querySelectorAll("[data-status-view]").forEach((button) => {
     button.addEventListener("click", () => {
       statusView = button.dataset.statusView;
+      quickFilter = { type: "all", value: "all" };
       render();
     });
+  });
+  els.quickFilterList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-quick-type]");
+    if (!button) return;
+    quickFilter = {
+      type: button.dataset.quickType,
+      value: button.dataset.quickValue,
+    };
+    statusView = "active";
+    els.searchInput.value = "";
+    els.categoryFilter.value = "all";
+    els.ownerFilter.value = "all";
+    render();
   });
   els.subscriptionList.addEventListener("click", (event) => {
     const row = event.target.closest(".subscription-row");
